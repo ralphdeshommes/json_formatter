@@ -382,29 +382,59 @@
     <script>
         let jsonData = null;
         let currentPath = [];
+        let parseTimeout;
+
+        // Auto-parse on input with debounce
+        document.addEventListener('DOMContentLoaded', function() {
+            const input = document.getElementById('input');
+            input.addEventListener('input', function() {
+                clearTimeout(parseTimeout);
+                parseTimeout = setTimeout(parseJSON, 500);
+            });
+        });
 
         function parseJSON() {
-            const input = document.getElementById('input').value;
+            let input = document.getElementById('input').value.trim();
             const error = document.getElementById('error');
             const tree = document.getElementById('tree');
             const stats = document.getElementById('stats');
             
             error.innerHTML = '';
             
-            if (!input.trim()) {
+            if (!input) {
                 error.innerHTML = '<div class="error">Please enter some JSON data</div>';
                 return;
             }
             
             try {
-                jsonData = JSON.parse(input);
+                // Remove any trailing commas before closing braces/brackets
+                let cleanedInput = input.replace(/,(\s*[}\]])/g, '$1');
+                
+                // Auto-fix: add missing closing braces/brackets
+                let openBraces = (cleanedInput.match(/{/g) || []).length;
+                let closeBraces = (cleanedInput.match(/}/g) || []).length;
+                let openBrackets = (cleanedInput.match(/\[/g) || []).length;
+                let closeBrackets = (cleanedInput.match(/\]/g) || []).length;
+                
+                while (openBraces > closeBraces) {
+                    cleanedInput += '}';
+                    closeBraces++;
+                }
+                while (openBrackets > closeBrackets) {
+                    cleanedInput += ']';
+                    closeBrackets++;
+                }
+                
+                jsonData = JSON.parse(cleanedInput);
                 tree.innerHTML = '';
                 renderTree(jsonData, tree, []);
                 updateStats(jsonData);
                 stats.style.display = 'flex';
                 resetPathInfo();
             } catch (e) {
-                error.innerHTML = `<div class="error"><strong>Parse Error:</strong> ${e.message}</div>`;
+                // Show last 100 chars for debugging
+                const endChars = input.slice(-100);
+                error.innerHTML = `<div class="error"><strong>Parse Error:</strong> ${e.message}<br><small>Last 100 chars: <code>${endChars}</code></small></div>`;
                 tree.innerHTML = '';
                 stats.style.display = 'none';
             }
