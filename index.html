@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON Viewer with Path Navigator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .panels {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr 0.8fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .panel h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 600px;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            resize: vertical;
+            transition: border-color 0.3s;
+            line-height: 1.6;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .tree-container {
+            width: 100%;
+            min-height: 600px;
+            max-height: 600px;
+            overflow: auto;
+            padding: 15px;
+            background: #fafbfc;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+        }
+
+        .tree-item {
+            margin-left: 20px;
+            padding: 4px 0;
+        }
+
+        .tree-root {
+            margin-left: 0;
+        }
+
+        .tree-toggle {
+            cursor: pointer;
+            user-select: none;
+            display: inline-block;
+            width: 20px;
+            color: #667eea;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+
+        .tree-toggle:hover {
+            color: #764ba2;
+        }
+
+        .tree-key {
+            color: #0550ae;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .tree-key:hover {
+            background-color: #ddf4ff;
+        }
+
+        .tree-value {
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 3px;
+            transition: background-color 0.2s;
+        }
+
+        .tree-value:hover {
+            background-color: #ddf4ff;
+        }
+
+        .tree-string {
+            color: #0a3069;
+        }
+
+        .tree-number {
+            color: #0550ae;
+            font-weight: 600;
+        }
+
+        .tree-boolean {
+            color: #8250df;
+            font-weight: 600;
+        }
+
+        .tree-null {
+            color: #6e7781;
+            font-weight: 600;
+        }
+
+        .tree-bracket {
+            color: #24292f;
+            font-weight: bold;
+        }
+
+        .collapsed-content {
+            display: none;
+        }
+
+        .tree-item.selected .tree-key,
+        .tree-item.selected .tree-value {
+            background-color: #54aeff;
+            color: white;
+        }
+
+        .path-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .breadcrumb {
+            background: #f6f8fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #d0d7de;
+            margin-bottom: 20px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            word-break: break-all;
+            min-height: 50px;
+        }
+
+        .breadcrumb-item {
+            display: inline-block;
+            color: #0550ae;
+            font-weight: 600;
+        }
+
+        .breadcrumb-separator {
+            color: #6e7781;
+            margin: 0 5px;
+        }
+
+        .info-section {
+            background: #f6f8fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #d0d7de;
+            margin-bottom: 15px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #d0d7de;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #24292f;
+        }
+
+        .info-value {
+            color: #0550ae;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+        }
+
+        .value-preview {
+            background: #f6f8fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #d0d7de;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 200px;
+            overflow: auto;
+        }
+
+        .error {
+            background: #fff5f5;
+            color: #cf222e;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            border-left: 4px solid #cf222e;
+        }
+
+        .stats {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .stat-box {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .stat-label {
+            color: #6e7781;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            color: #667eea;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        @media (max-width: 1200px) {
+            .panels {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Advanced JSON Viewer</h1>
+        
+        <div class="controls">
+            <button onclick="parseJSON()">🎨 Visualize JSON</button>
+            <button onclick="expandAll()">📖 Expand All</button>
+            <button onclick="collapseAll()">📕 Collapse All</button>
+            <button onclick="copyPath()">📋 Copy Path</button>
+            <button onclick="clearAll()">🗑️ Clear</button>
+            <button onclick="loadSample()">📄 Load Sample</button>
+        </div>
+
+        <div class="stats" id="stats" style="display: none;">
+            <div class="stat-box">
+                <div class="stat-label">Total Keys</div>
+                <div class="stat-value" id="totalKeys">0</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Depth</div>
+                <div class="stat-value" id="maxDepth">0</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Objects</div>
+                <div class="stat-value" id="objectCount">0</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Arrays</div>
+                <div class="stat-value" id="arrayCount">0</div>
+            </div>
+        </div>
+
+        <div class="panels">
+            <div class="panel">
+                <h2>📝 Input JSON</h2>
+                <textarea id="input" placeholder="Paste your JSON here..."></textarea>
+                <div id="error"></div>
+            </div>
+            
+            <div class="panel">
+                <h2>🌳 Tree View</h2>
+                <div id="tree" class="tree-container"></div>
+            </div>
+
+            <div class="path-panel">
+                <h2>📍 Path Navigator</h2>
+                <div class="breadcrumb" id="breadcrumb">
+                    <span style="color: #6e7781;">Click any key or value to see its path</span>
+                </div>
+
+                <h3 style="color: #667eea; margin-bottom: 10px; font-size: 1.1em;">Details</h3>
+                <div class="info-section" id="details">
+                    <div style="color: #6e7781; text-align: center; padding: 20px;">
+                        No selection
+                    </div>
+                </div>
+
+                <h3 style="color: #667eea; margin-bottom: 10px; font-size: 1.1em;">Value Preview</h3>
+                <div class="value-preview" id="valuePreview">
+                    <span style="color: #6e7781;">Select an item to preview its value</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let jsonData = null;
+        let currentPath = [];
+
+        function parseJSON() {
+            const input = document.getElementById('input').value;
+            const error = document.getElementById('error');
+            const tree = document.getElementById('tree');
+            const stats = document.getElementById('stats');
+            
+            error.innerHTML = '';
+            
+            if (!input.trim()) {
+                error.innerHTML = '<div class="error">Please enter some JSON data</div>';
+                return;
+            }
+            
+            try {
+                jsonData = JSON.parse(input);
+                tree.innerHTML = '';
+                renderTree(jsonData, tree, []);
+                updateStats(jsonData);
+                stats.style.display = 'flex';
+                resetPathInfo();
+            } catch (e) {
+                error.innerHTML = `<div class="error"><strong>Parse Error:</strong> ${e.message}</div>`;
+                tree.innerHTML = '';
+                stats.style.display = 'none';
+            }
+        }
+
+        function renderTree(obj, container, path, key = null) {
+            const item = document.createElement('div');
+            item.className = path.length === 0 ? 'tree-item tree-root' : 'tree-item';
+            
+            if (obj === null) {
+                item.innerHTML = createLeaf(key, 'null', 'null', path);
+            } else if (Array.isArray(obj)) {
+                item.innerHTML = createBranch(key, 'array', obj.length, path);
+                const content = document.createElement('div');
+                content.className = 'tree-content';
+                obj.forEach((val, idx) => {
+                    renderTree(val, content, [...path, idx], idx);
+                });
+                item.appendChild(content);
+            } else if (typeof obj === 'object') {
+                item.innerHTML = createBranch(key, 'object', Object.keys(obj).length, path);
+                const content = document.createElement('div');
+                content.className = 'tree-content';
+                Object.entries(obj).forEach(([k, v]) => {
+                    renderTree(v, content, [...path, k], k);
+                });
+                item.appendChild(content);
+            } else if (typeof obj === 'string') {
+                item.innerHTML = createLeaf(key, `"${obj}"`, 'string', path);
+            } else if (typeof obj === 'number') {
+                item.innerHTML = createLeaf(key, obj, 'number', path);
+            } else if (typeof obj === 'boolean') {
+                item.innerHTML = createLeaf(key, obj, 'boolean', path);
+            }
+            
+            container.appendChild(item);
+        }
+
+        function createBranch(key, type, count, path) {
+            const toggle = '<span class="tree-toggle" onclick="toggleBranch(event)">▼</span>';
+            const keyStr = key !== null ? `<span class="tree-key" onclick="selectItem(event, ${JSON.stringify(path).replace(/"/g, '&quot;')})">${key}</span>: ` : '';
+            const bracket = type === 'array' ? '[' : '{';
+            const closeBracket = type === 'array' ? ']' : '}';
+            const countStr = `<span style="color: #6e7781; font-size: 11px;"> // ${count} items</span>`;
+            return `${toggle}${keyStr}<span class="tree-bracket">${bracket}</span>${countStr}<span class="collapsed-preview" style="display:none;"><span class="tree-bracket">...</span><span class="tree-bracket">${closeBracket}</span></span>`;
+        }
+
+        function createLeaf(key, value, type, path) {
+            const keyStr = key !== null ? `<span class="tree-key" onclick="selectItem(event, ${JSON.stringify(path).replace(/"/g, '&quot;')})">${key}</span>: ` : '';
+            return `<span style="width: 20px; display: inline-block;"></span>${keyStr}<span class="tree-value tree-${type}" onclick="selectItem(event, ${JSON.stringify(path).replace(/"/g, '&quot;')})">${value}</span>`;
+        }
+
+        function toggleBranch(event) {
+            event.stopPropagation();
+            const toggle = event.target;
+            const item = toggle.parentElement;
+            const content = item.querySelector('.tree-content');
+            const preview = item.querySelector('.collapsed-preview');
+            
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                preview.style.display = 'none';
+                toggle.textContent = '▼';
+            } else {
+                content.style.display = 'none';
+                preview.style.display = 'inline';
+                toggle.textContent = '▶';
+            }
+        }
+
+        function selectItem(event, path) {
+            event.stopPropagation();
+            
+            document.querySelectorAll('.tree-item').forEach(el => el.classList.remove('selected'));
+            
+            let target = event.target;
+            while (target && !target.classList.contains('tree-item')) {
+                target = target.parentElement;
+            }
+            if (target) target.classList.add('selected');
+            
+            currentPath = path;
+            updatePathInfo(path);
+        }
+
+        function updatePathInfo(path) {
+            const breadcrumb = document.getElementById('breadcrumb');
+            const details = document.getElementById('details');
+            const valuePreview = document.getElementById('valuePreview');
+            
+            let pathStr = 'root';
+            if (path.length > 0) {
+                pathStr += path.map(p => typeof p === 'number' ? `[${p}]` : `.${p}`).join('');
+            }
+            
+            breadcrumb.innerHTML = pathStr.split(/(\.|\\[|\\])/).filter(Boolean).map((part, idx) => {
+                if (part === '.' || part === '[' || part === ']') {
+                    return `<span class="breadcrumb-separator">${part}</span>`;
+                }
+                return `<span class="breadcrumb-item">${part}</span>`;
+            }).join('');
+            
+            let value = jsonData;
+            for (const p of path) {
+                value = value[p];
+            }
+            
+            const type = Array.isArray(value) ? 'array' : typeof value;
+            let size = '-';
+            if (type === 'array') size = value.length;
+            else if (type === 'object' && value !== null) size = Object.keys(value).length;
+            else if (type === 'string') size = value.length + ' chars';
+            
+            details.innerHTML = `
+                <div class="info-row">
+                    <span class="info-label">Type:</span>
+                    <span class="info-value">${type}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Path:</span>
+                    <span class="info-value">${pathStr}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Depth:</span>
+                    <span class="info-value">${path.length}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Size:</span>
+                    <span class="info-value">${size}</span>
+                </div>
+            `;
+            
+            if (type === 'object' || type === 'array') {
+                valuePreview.textContent = JSON.stringify(value, null, 2);
+            } else {
+                valuePreview.textContent = JSON.stringify(value);
+            }
+        }
+
+        function resetPathInfo() {
+            document.getElementById('breadcrumb').innerHTML = '<span style="color: #6e7781;">Click any key or value to see its path</span>';
+            document.getElementById('details').innerHTML = '<div style="color: #6e7781; text-align: center; padding: 20px;">No selection</div>';
+            document.getElementById('valuePreview').innerHTML = '<span style="color: #6e7781;">Select an item to preview its value</span>';
+        }
+
+        function updateStats(obj) {
+            const stats = analyzeJSON(obj);
+            document.getElementById('totalKeys').textContent = stats.totalKeys;
+            document.getElementById('maxDepth').textContent = stats.maxDepth;
+            document.getElementById('objectCount').textContent = stats.objectCount;
+            document.getElementById('arrayCount').textContent = stats.arrayCount;
+        }
+
+        function analyzeJSON(obj, depth = 0) {
+            let stats = { totalKeys: 0, maxDepth: depth, objectCount: 0, arrayCount: 0 };
+            
+            if (obj === null || typeof obj !== 'object') return stats;
+            
+            if (Array.isArray(obj)) {
+                stats.arrayCount = 1;
+                obj.forEach(item => {
+                    const subStats = analyzeJSON(item, depth + 1);
+                    stats.totalKeys += subStats.totalKeys;
+                    stats.maxDepth = Math.max(stats.maxDepth, subStats.maxDepth);
+                    stats.objectCount += subStats.objectCount;
+                    stats.arrayCount += subStats.arrayCount;
+                });
+            } else {
+                stats.objectCount = 1;
+                Object.entries(obj).forEach(([key, value]) => {
+                    stats.totalKeys++;
+                    const subStats = analyzeJSON(value, depth + 1);
+                    stats.totalKeys += subStats.totalKeys;
+                    stats.maxDepth = Math.max(stats.maxDepth, subStats.maxDepth);
+                    stats.objectCount += subStats.objectCount;
+                    stats.arrayCount += subStats.arrayCount;
+                });
+            }
+            
+            return stats;
+        }
+
+        function expandAll() {
+            document.querySelectorAll('.tree-content').forEach(el => {
+                el.style.display = 'block';
+            });
+            document.querySelectorAll('.collapsed-preview').forEach(el => {
+                el.style.display = 'none';
+            });
+            document.querySelectorAll('.tree-toggle').forEach(el => {
+                el.textContent = '▼';
+            });
+        }
+
+        function collapseAll() {
+            document.querySelectorAll('.tree-content').forEach(el => {
+                el.style.display = 'none';
+            });
+            document.querySelectorAll('.collapsed-preview').forEach(el => {
+                el.style.display = 'inline';
+            });
+            document.querySelectorAll('.tree-toggle').forEach(el => {
+                el.textContent = '▶';
+            });
+        }
+
+        function copyPath() {
+            const breadcrumb = document.getElementById('breadcrumb');
+            const text = breadcrumb.innerText;
+            
+            if (!text || text.includes('Click any')) {
+                alert('Please select an item first!');
+                return;
+            }
+            
+            navigator.clipboard.writeText(text).then(() => {
+                alert('✓ Path copied to clipboard!');
+            });
+        }
+
+        function clearAll() {
+            document.getElementById('input').value = '';
+            document.getElementById('tree').innerHTML = '';
+            document.getElementById('error').innerHTML = '';
+            document.getElementById('stats').style.display = 'none';
+            resetPathInfo();
+            jsonData = null;
+            currentPath = [];
+        }
+
+        function loadSample() {
+            const sample = {
+                "user": {
+                    "id": 12345,
+                    "name": "John Doe",
+                    "email": "john.doe@example.com",
+                    "isActive": true,
+                    "roles": ["admin", "developer", "user"],
+                    "profile": {
+                        "age": 30,
+                        "location": {
+                            "city": "San Francisco",
+                            "state": "CA",
+                            "country": "USA",
+                            "coordinates": {
+                                "latitude": 37.7749,
+                                "longitude": -122.4194
+                            }
+                        },
+                        "preferences": {
+                            "theme": "dark",
+                            "notifications": {
+                                "email": true,
+                                "push": false,
+                                "sms": true
+                            },
+                            "language": "en-US"
+                        }
+                    }
+                },
+                "projects": [
+                    {
+                        "id": 1,
+                        "name": "Website Redesign",
+                        "status": "active",
+                        "team": ["Alice", "Bob", "Charlie"]
+                    },
+                    {
+                        "id": 2,
+                        "name": "Mobile App",
+                        "status": "planning",
+                        "team": ["David", "Eve"]
+                    }
+                ],
+                "metadata": {
+                    "createdAt": "2024-01-15T10:30:00Z",
+                    "lastModified": "2024-12-29T08:15:00Z",
+                    "version": "2.0.1"
+                }
+            };
+            
+            document.getElementById('input').value = JSON.stringify(sample, null, 2);
+            parseJSON();
+        }
+    </script>
+</body>
+</html>
