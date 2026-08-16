@@ -5,6 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JSON Viewer with Path Navigator</title>
     <style>
+        :root {
+            --color-accent: #b45309;
+            --color-accent-hover: #92400e;
+            --color-accent-light: #fef3e8;
+            --color-danger: #b91c1c;
+            --color-danger-light: #fef2f2;
+            --color-bg: #faf9f7;
+            --color-surface: #ffffff;
+            --color-surface-alt: #f7f5f2;
+            --color-border: #e2ded7;
+            --color-text: #1c1917;
+            --color-text-muted: #78716c;
+            --color-text-faint: #a8a29e;
+            --radius-sm: 4px;
+            --radius-md: 6px;
+            --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -12,93 +30,138 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--color-bg);
             min-height: 100vh;
-            padding: 20px;
+            padding: 0;
+            color: var(--color-text);
+            font-size: 14px;
         }
 
         .container {
             max-width: 1600px;
             margin: 0 auto;
+            padding: 0 20px 24px;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--color-border);
         }
 
         h1 {
-            text-align: center;
-            color: white;
-            margin-bottom: 30px;
-            font-size: 2.5em;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            font-size: 1.05em;
+            font-weight: 700;
+            letter-spacing: 0.2px;
+        }
+
+        h1 .accent {
+            color: var(--color-accent);
         }
 
         .controls {
             display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
+            gap: 8px;
             flex-wrap: wrap;
         }
 
-        button {
-            padding: 12px 24px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
+        .btn {
+            padding: 7px 14px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--color-border);
             cursor: pointer;
-            font-size: 16px;
+            font-size: 13px;
             font-weight: 600;
-            transition: transform 0.2s, box-shadow 0.2s;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            background: var(--color-surface);
+            color: var(--color-text);
+            transition: background-color 0.1s ease, border-color 0.1s ease;
         }
 
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        .btn:hover {
+            background: var(--color-surface-alt);
+            border-color: #cbc5ba;
         }
 
-        button:active {
-            transform: translateY(0);
+        .btn:active {
+            background: #efece6;
+        }
+
+        .btn-primary {
+            background: var(--color-accent);
+            color: #fff;
+            border-color: var(--color-accent);
+        }
+
+        .btn-primary:hover {
+            background: var(--color-accent-hover);
+            border-color: var(--color-accent-hover);
+        }
+
+        .btn-danger {
+            color: var(--color-danger);
+            border-color: var(--color-border);
+        }
+
+        .btn-danger:hover {
+            background: var(--color-danger-light);
+            border-color: #eab8b8;
         }
 
         .panels {
             display: grid;
             grid-template-columns: 1fr 1.2fr 0.8fr;
-            gap: 20px;
+            gap: 16px;
             margin-bottom: 20px;
+            align-items: start;
         }
 
         .panel {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            background: var(--color-surface);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            border: 1px solid var(--color-border);
         }
 
         .panel h2 {
-            color: #667eea;
-            margin-bottom: 15px;
-            font-size: 1.3em;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            color: var(--color-text-muted);
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--color-border);
+            font-size: 0.72em;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
         }
 
         textarea {
             width: 100%;
             height: 600px;
-            padding: 15px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-family: 'Consolas', 'Monaco', monospace;
+            padding: 14px;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            font-family: var(--font-mono);
             font-size: 13px;
             resize: vertical;
-            transition: border-color 0.3s;
+            transition: border-color 0.15s;
             line-height: 1.6;
+            background: var(--color-surface-alt);
+            color: var(--color-text);
+        }
+
+        textarea::placeholder {
+            color: var(--color-text-faint);
         }
 
         textarea:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: var(--color-accent);
+            background: #fff;
         }
 
         .tree-container {
@@ -106,82 +169,89 @@
             min-height: 600px;
             max-height: 600px;
             overflow: auto;
-            padding: 15px;
-            background: #fafbfc;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-family: 'Consolas', 'Monaco', monospace;
+            padding: 14px;
+            background: var(--color-surface-alt);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            font-family: var(--font-mono);
             font-size: 13px;
         }
 
         .tree-item {
-            margin-left: 20px;
-            padding: 4px 0;
+            margin-left: 18px;
+            padding: 3px 0;
         }
 
         .tree-root {
             margin-left: 0;
         }
 
+        .tree-content {
+            margin-left: 2px;
+            padding-left: 14px;
+            border-left: 1px dashed var(--color-border);
+        }
+
         .tree-toggle {
             cursor: pointer;
             user-select: none;
             display: inline-block;
-            width: 20px;
-            color: #667eea;
+            width: 18px;
+            color: var(--color-text-faint);
             font-weight: bold;
-            transition: transform 0.2s;
+            font-size: 11px;
         }
 
         .tree-toggle:hover {
-            color: #764ba2;
+            color: var(--color-text);
         }
 
         .tree-key {
-            color: #0550ae;
+            color: #0f4c81;
             font-weight: 600;
             cursor: pointer;
-            transition: background-color 0.2s;
-            padding: 2px 4px;
+            transition: background-color 0.15s;
+            padding: 2px 5px;
             border-radius: 3px;
         }
 
         .tree-key:hover {
-            background-color: #ddf4ff;
+            background-color: var(--color-accent-light);
         }
 
         .tree-value {
             cursor: pointer;
-            padding: 2px 4px;
+            padding: 2px 5px;
             border-radius: 3px;
-            transition: background-color 0.2s;
+            transition: background-color 0.15s;
         }
 
         .tree-value:hover {
-            background-color: #ddf4ff;
+            background-color: var(--color-accent-light);
         }
 
         .tree-string {
-            color: #0a3069;
+            color: #15803d;
         }
 
         .tree-number {
-            color: #0550ae;
+            color: #b45309;
             font-weight: 600;
         }
 
         .tree-boolean {
-            color: #8250df;
+            color: #6d28d9;
             font-weight: 600;
         }
 
         .tree-null {
-            color: #6e7781;
+            color: var(--color-text-faint);
             font-weight: 600;
+            font-style: italic;
         }
 
         .tree-bracket {
-            color: #24292f;
+            color: var(--color-text);
             font-weight: bold;
         }
 
@@ -191,53 +261,76 @@
 
         .tree-item.selected .tree-key,
         .tree-item.selected .tree-value {
-            background-color: #54aeff;
+            background-color: var(--color-accent);
             color: white;
         }
 
         .path-panel {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            background: var(--color-surface);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            border: 1px solid var(--color-border);
+        }
+
+        .path-panel h2 {
+            color: var(--color-text-muted);
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--color-border);
+            font-size: 0.72em;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+        }
+
+        .path-panel h3 {
+            color: var(--color-text-faint);
+            margin-bottom: 8px;
+            font-size: 0.7em;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
         }
 
         .breadcrumb {
-            background: #f6f8fa;
-            padding: 15px;
-            border-radius: 8px;
-            border: 2px solid #d0d7de;
-            margin-bottom: 20px;
-            font-family: 'Consolas', 'Monaco', monospace;
+            background: var(--color-surface-alt);
+            padding: 12px 14px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--color-border);
+            margin-bottom: 18px;
+            font-family: var(--font-mono);
             font-size: 13px;
             word-break: break-all;
-            min-height: 50px;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
         }
 
         .breadcrumb-item {
             display: inline-block;
-            color: #0550ae;
+            color: #0f4c81;
             font-weight: 600;
         }
 
         .breadcrumb-separator {
-            color: #6e7781;
-            margin: 0 5px;
+            color: var(--color-text-faint);
+            margin: 0 4px;
         }
 
         .info-section {
-            background: #f6f8fa;
-            padding: 15px;
-            border-radius: 8px;
-            border: 2px solid #d0d7de;
-            margin-bottom: 15px;
+            background: var(--color-surface-alt);
+            padding: 12px 14px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--color-border);
+            margin-bottom: 14px;
         }
 
         .info-row {
             display: flex;
             justify-content: space-between;
             padding: 8px 0;
-            border-bottom: 1px solid #d0d7de;
+            border-bottom: 1px solid var(--color-border);
         }
 
         .info-row:last-child {
@@ -246,65 +339,106 @@
 
         .info-label {
             font-weight: 600;
-            color: #24292f;
+            color: var(--color-text-muted);
+            font-size: 13px;
         }
 
         .info-value {
-            color: #0550ae;
-            font-family: 'Consolas', 'Monaco', monospace;
+            color: var(--color-text);
+            font-family: var(--font-mono);
             font-size: 12px;
+            font-weight: 600;
         }
 
         .value-preview {
-            background: #f6f8fa;
-            padding: 15px;
-            border-radius: 8px;
-            border: 2px solid #d0d7de;
-            font-family: 'Consolas', 'Monaco', monospace;
+            background: var(--color-surface-alt);
+            padding: 12px 14px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--color-border);
+            font-family: var(--font-mono);
             font-size: 13px;
             white-space: pre-wrap;
             word-break: break-all;
             max-height: 200px;
             overflow: auto;
+            color: var(--color-text);
         }
 
         .error {
-            background: #fff5f5;
-            color: #cf222e;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 10px;
-            border-left: 4px solid #cf222e;
+            background: var(--color-danger-light);
+            color: #991b1b;
+            padding: 12px 14px;
+            border-radius: var(--radius-sm);
+            margin-top: 12px;
+            border: 1px solid #f3caca;
+            border-left: 3px solid var(--color-danger);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .error code {
+            background: rgba(185, 28, 28, 0.08);
+            padding: 1px 4px;
+            border-radius: 3px;
         }
 
         .stats {
             display: flex;
-            gap: 10px;
+            gap: 12px;
             flex-wrap: wrap;
             margin-bottom: 20px;
         }
 
         .stat-box {
-            background: white;
-            padding: 15px 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            background: var(--color-surface);
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--color-border);
+            border-left: 2px solid var(--color-accent);
             flex: 1;
             min-width: 150px;
         }
 
         .stat-label {
-            color: #6e7781;
-            font-size: 12px;
+            color: var(--color-text-muted);
+            font-size: 11px;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.6px;
             margin-bottom: 5px;
+            font-weight: 600;
         }
 
         .stat-value {
-            color: #667eea;
-            font-size: 24px;
-            font-weight: bold;
+            color: var(--color-text);
+            font-size: 22px;
+            font-weight: 700;
+            font-family: var(--font-mono);
+        }
+
+        textarea::-webkit-scrollbar,
+        .tree-container::-webkit-scrollbar,
+        .value-preview::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        textarea::-webkit-scrollbar-track,
+        .tree-container::-webkit-scrollbar-track,
+        .value-preview::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        textarea::-webkit-scrollbar-thumb,
+        .tree-container::-webkit-scrollbar-thumb,
+        .value-preview::-webkit-scrollbar-thumb {
+            background: #ded8ce;
+            border-radius: 20px;
+        }
+
+        textarea::-webkit-scrollbar-thumb:hover,
+        .tree-container::-webkit-scrollbar-thumb:hover,
+        .value-preview::-webkit-scrollbar-thumb:hover {
+            background: #c2b9ab;
         }
 
         @media (max-width: 1200px) {
@@ -316,15 +450,16 @@
 </head>
 <body>
     <div class="container">
-        <h1>🔍 Advanced JSON Viewer</h1>
-        
-        <div class="controls">
-            <button onclick="parseJSON()">🎨 Visualize JSON</button>
-            <button onclick="expandAll()">📖 Expand All</button>
-            <button onclick="collapseAll()">📕 Collapse All</button>
-            <button onclick="copyPath()">📋 Copy Path</button>
-            <button onclick="clearAll()">🗑️ Clear</button>
-            <button onclick="loadSample()">📄 Load Sample</button>
+        <div class="topbar">
+            <h1>JSON<span class="accent">Viewer</span></h1>
+            <div class="controls">
+                <button class="btn btn-primary" onclick="parseJSON()">Visualize</button>
+                <button class="btn" onclick="expandAll()">Expand All</button>
+                <button class="btn" onclick="collapseAll()">Collapse All</button>
+                <button class="btn" onclick="copyPath()">Copy Path</button>
+                <button class="btn btn-danger" onclick="clearAll()">Clear</button>
+                <button class="btn" onclick="loadSample()">Load Sample</button>
+            </div>
         </div>
 
         <div class="stats" id="stats" style="display: none;">
@@ -348,32 +483,32 @@
 
         <div class="panels">
             <div class="panel">
-                <h2>📝 Input JSON</h2>
+                <h2>Input</h2>
                 <textarea id="input" placeholder="Paste your JSON here..."></textarea>
                 <div id="error"></div>
             </div>
-            
+
             <div class="panel">
-                <h2>🌳 Tree View</h2>
+                <h2>Tree</h2>
                 <div id="tree" class="tree-container"></div>
             </div>
 
             <div class="path-panel">
-                <h2>📍 Path Navigator</h2>
+                <h2>Path</h2>
                 <div class="breadcrumb" id="breadcrumb">
-                    <span style="color: #6e7781;">Click any key or value to see its path</span>
+                    <span style="color: #a8a29e;">Click any key or value to see its path</span>
                 </div>
 
-                <h3 style="color: #667eea; margin-bottom: 10px; font-size: 1.1em;">Details</h3>
+                <h3>Details</h3>
                 <div class="info-section" id="details">
-                    <div style="color: #6e7781; text-align: center; padding: 20px;">
+                    <div style="color: #a8a29e; text-align: center; padding: 20px;">
                         No selection
                     </div>
                 </div>
 
-                <h3 style="color: #667eea; margin-bottom: 10px; font-size: 1.1em;">Value Preview</h3>
+                <h3>Value Preview</h3>
                 <div class="value-preview" id="valuePreview">
-                    <span style="color: #6e7781;">Select an item to preview its value</span>
+                    <span style="color: #a8a29e;">Select an item to preview its value</span>
                 </div>
             </div>
         </div>
@@ -478,7 +613,7 @@
             const keyStr = key !== null ? `<span class="tree-key" onclick="selectItem(event, ${JSON.stringify(path).replace(/"/g, '&quot;')})">${key}</span>: ` : '';
             const bracket = type === 'array' ? '[' : '{';
             const closeBracket = type === 'array' ? ']' : '}';
-            const countStr = `<span style="color: #6e7781; font-size: 11px;"> // ${count} items</span>`;
+            const countStr = `<span style="color: #a8a29e; font-size: 11px;"> // ${count} items</span>`;
             return `${toggle}${keyStr}<span class="tree-bracket">${bracket}</span>${countStr}<span class="collapsed-preview" style="display:none;"><span class="tree-bracket">...</span><span class="tree-bracket">${closeBracket}</span></span>`;
         }
 
@@ -575,9 +710,9 @@
         }
 
         function resetPathInfo() {
-            document.getElementById('breadcrumb').innerHTML = '<span style="color: #6e7781;">Click any key or value to see its path</span>';
-            document.getElementById('details').innerHTML = '<div style="color: #6e7781; text-align: center; padding: 20px;">No selection</div>';
-            document.getElementById('valuePreview').innerHTML = '<span style="color: #6e7781;">Select an item to preview its value</span>';
+            document.getElementById('breadcrumb').innerHTML = '<span style="color: #a8a29e;">Click any key or value to see its path</span>';
+            document.getElementById('details').innerHTML = '<div style="color: #a8a29e; text-align: center; padding: 20px;">No selection</div>';
+            document.getElementById('valuePreview').innerHTML = '<span style="color: #a8a29e;">Select an item to preview its value</span>';
         }
 
         function updateStats(obj) {
