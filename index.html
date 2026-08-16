@@ -113,6 +113,16 @@
             border-color: #eab8b8;
         }
 
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn:disabled:hover {
+            background: var(--color-surface);
+            border-color: var(--color-border);
+        }
+
         .panels {
             display: grid;
             grid-template-columns: 1fr 1.2fr 0.8fr;
@@ -137,6 +147,55 @@
             font-weight: 700;
             letter-spacing: 0.8px;
             text-transform: uppercase;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .panel-header h2 {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .segmented {
+            display: inline-flex;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+        }
+
+        .segmented-btn {
+            padding: 4px 10px;
+            border: none;
+            border-left: 1px solid var(--color-border);
+            background: var(--color-surface);
+            color: var(--color-text-muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+
+        .segmented-btn:first-child {
+            border-left: none;
+        }
+
+        .segmented-btn:hover {
+            background: var(--color-surface-alt);
+        }
+
+        .segmented-btn.active {
+            background: var(--color-accent);
+            color: #fff;
         }
 
         textarea {
@@ -257,6 +316,68 @@
 
         .collapsed-content {
             display: none;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 6px 10px;
+            border-bottom: 1px solid var(--color-border);
+            text-align: left;
+            white-space: nowrap;
+            max-width: 280px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .data-table thead th {
+            position: sticky;
+            top: 0;
+            background: var(--color-surface-alt);
+            color: var(--color-text-muted);
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .data-table td {
+            cursor: pointer;
+        }
+
+        .data-table td.row-index,
+        .data-table td.key-cell {
+            color: var(--color-text-muted);
+            font-weight: 600;
+        }
+
+        .data-table td.missing-cell {
+            color: var(--color-text-faint);
+        }
+
+        .data-table tbody tr:hover td {
+            background: var(--color-accent-light);
+        }
+
+        .data-table td.selected {
+            background: var(--color-accent) !important;
+            color: #fff;
+        }
+
+        .table-empty,
+        .table-scalar {
+            padding: 16px;
+            color: var(--color-text-muted);
+        }
+
+        .table-preview {
+            color: var(--color-text-muted);
+            font-style: italic;
         }
 
         .tree-item.selected .tree-key,
@@ -454,8 +575,8 @@
             <h1>JSON<span class="accent">Viewer</span></h1>
             <div class="controls">
                 <button class="btn btn-primary" onclick="parseJSON()">Visualize</button>
-                <button class="btn" onclick="expandAll()">Expand All</button>
-                <button class="btn" onclick="collapseAll()">Collapse All</button>
+                <button class="btn" id="expandAllBtn" onclick="expandAll()">Expand All</button>
+                <button class="btn" id="collapseAllBtn" onclick="collapseAll()">Collapse All</button>
                 <button class="btn" onclick="copyPath()">Copy Path</button>
                 <button class="btn btn-danger" onclick="clearAll()">Clear</button>
                 <button class="btn" onclick="loadSample()">Load Sample</button>
@@ -489,7 +610,13 @@
             </div>
 
             <div class="panel">
-                <h2>Tree</h2>
+                <div class="panel-header">
+                    <h2>Tree</h2>
+                    <div class="segmented" role="tablist">
+                        <button class="segmented-btn active" id="treeViewBtn" type="button" onclick="setTreeView('tree')">Tree</button>
+                        <button class="segmented-btn" id="tableViewBtn" type="button" onclick="setTreeView('table')">Table</button>
+                    </div>
+                </div>
                 <div id="tree" class="tree-container"></div>
             </div>
 
@@ -518,6 +645,7 @@
         let jsonData = null;
         let currentPath = [];
         let parseTimeout;
+        let viewMode = 'tree';
 
         // Auto-parse on input with debounce
         document.addEventListener('DOMContentLoaded', function() {
@@ -527,6 +655,26 @@
                 parseTimeout = setTimeout(parseJSON, 500);
             });
         });
+
+        function setTreeView(mode) {
+            if (mode === viewMode) return;
+            viewMode = mode;
+            document.getElementById('treeViewBtn').classList.toggle('active', mode === 'tree');
+            document.getElementById('tableViewBtn').classList.toggle('active', mode === 'table');
+            document.getElementById('expandAllBtn').disabled = mode === 'table';
+            document.getElementById('collapseAllBtn').disabled = mode === 'table';
+            if (jsonData !== null) renderCurrentView();
+        }
+
+        function renderCurrentView() {
+            const tree = document.getElementById('tree');
+            tree.innerHTML = '';
+            if (viewMode === 'table') {
+                renderTable(jsonData, tree);
+            } else {
+                renderTree(jsonData, tree, []);
+            }
+        }
 
         function parseJSON() {
             let input = document.getElementById('input').value.trim();
@@ -561,8 +709,7 @@
                 }
                 
                 jsonData = JSON.parse(cleanedInput);
-                tree.innerHTML = '';
-                renderTree(jsonData, tree, []);
+                renderCurrentView();
                 updateStats(jsonData);
                 stats.style.display = 'flex';
                 resetPathInfo();
@@ -620,6 +767,122 @@
         function createLeaf(key, value, type, path) {
             const keyStr = key !== null ? `<span class="tree-key" onclick="selectItem(event, ${JSON.stringify(path).replace(/"/g, '&quot;')})">${key}</span>: ` : '';
             return `<span style="width: 20px; display: inline-block;"></span>${keyStr}<span class="tree-value tree-${type}" onclick="selectItem(event, ${JSON.stringify(path).replace(/"/g, '&quot;')})">${value}</span>`;
+        }
+
+        function pathAttr(path) {
+            return JSON.stringify(path).replace(/"/g, '&quot;');
+        }
+
+        function cellPreview(value) {
+            if (value === null) return { text: 'null', cls: 'tree-null' };
+            if (Array.isArray(value)) return { text: `[${value.length} items]`, cls: 'table-preview' };
+            if (typeof value === 'object') return { text: `{${Object.keys(value).length} keys}`, cls: 'table-preview' };
+            if (typeof value === 'string') {
+                const truncated = value.length > 60 ? value.slice(0, 60) + '…' : value;
+                return { text: `"${truncated}"`, cls: 'tree-string' };
+            }
+            if (typeof value === 'number') return { text: String(value), cls: 'tree-number' };
+            if (typeof value === 'boolean') return { text: String(value), cls: 'tree-boolean' };
+            return { text: String(value), cls: '' };
+        }
+
+        function renderTable(data, container) {
+            container.appendChild(buildTableForValue(data, []));
+        }
+
+        function buildTableForValue(value, path) {
+            if (Array.isArray(value)) return buildArrayTable(value, path);
+            if (value !== null && typeof value === 'object') return buildObjectTable(value, path);
+            const div = document.createElement('div');
+            div.className = 'table-scalar';
+            const p = cellPreview(value);
+            div.innerHTML = `<span class="${p.cls}">${p.text}</span>`;
+            return div;
+        }
+
+        function buildArrayTable(arr, path) {
+            const wrap = document.createElement('div');
+
+            if (arr.length === 0) {
+                wrap.className = 'table-empty';
+                wrap.textContent = 'Empty array';
+                return wrap;
+            }
+
+            const allRecords = arr.every(item => item !== null && typeof item === 'object' && !Array.isArray(item));
+
+            if (allRecords) {
+                const columns = [];
+                arr.forEach(obj => {
+                    Object.keys(obj).forEach(k => {
+                        if (!columns.includes(k)) columns.push(k);
+                    });
+                });
+
+                let html = `<table class="data-table"><thead><tr><th>#</th>${columns.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>`;
+                arr.forEach((obj, i) => {
+                    const rowPath = [...path, i];
+                    html += `<tr><td class="row-index" onclick="selectTableCell(event, ${pathAttr(rowPath)})">${i}</td>`;
+                    columns.forEach(col => {
+                        if (!(col in obj)) {
+                            html += `<td class="missing-cell" onclick="selectTableCell(event, ${pathAttr(rowPath)})">—</td>`;
+                        } else {
+                            const p = cellPreview(obj[col]);
+                            html += `<td onclick="selectTableCell(event, ${pathAttr([...rowPath, col])})"><span class="${p.cls}">${p.text}</span></td>`;
+                        }
+                    });
+                    html += `</tr>`;
+                });
+                html += `</tbody></table>`;
+                wrap.innerHTML = html;
+            } else {
+                let html = `<table class="data-table"><thead><tr><th>#</th><th>Value</th></tr></thead><tbody>`;
+                arr.forEach((item, i) => {
+                    const cellPath = [...path, i];
+                    const p = cellPreview(item);
+                    html += `<tr><td class="row-index" onclick="selectTableCell(event, ${pathAttr(cellPath)})">${i}</td><td onclick="selectTableCell(event, ${pathAttr(cellPath)})"><span class="${p.cls}">${p.text}</span></td></tr>`;
+                });
+                html += `</tbody></table>`;
+                wrap.innerHTML = html;
+            }
+
+            return wrap;
+        }
+
+        function buildObjectTable(obj, path) {
+            const entries = Object.entries(obj);
+            const wrap = document.createElement('div');
+
+            if (entries.length === 0) {
+                wrap.className = 'table-empty';
+                wrap.textContent = 'Empty object';
+                return wrap;
+            }
+
+            let html = `<table class="data-table"><thead><tr><th>Key</th><th>Value</th></tr></thead><tbody>`;
+            entries.forEach(([k, v]) => {
+                const cellPath = [...path, k];
+                const p = cellPreview(v);
+                html += `<tr><td class="key-cell" onclick="selectTableCell(event, ${pathAttr(cellPath)})">${k}</td><td onclick="selectTableCell(event, ${pathAttr(cellPath)})"><span class="${p.cls}">${p.text}</span></td></tr>`;
+            });
+            html += `</tbody></table>`;
+            wrap.innerHTML = html;
+            return wrap;
+        }
+
+        function selectTableCell(event, path) {
+            event.stopPropagation();
+
+            document.querySelectorAll('.data-table td.selected').forEach(el => el.classList.remove('selected'));
+
+            let target = event.target;
+            while (target && target.tagName !== 'TD') {
+                target = target.parentElement;
+            }
+            if (target) target.classList.add('selected');
+
+            currentPath = path;
+            updatePathInfo(path);
         }
 
         function toggleBranch(event) {
