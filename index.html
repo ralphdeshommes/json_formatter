@@ -650,6 +650,12 @@
         // Auto-parse on input with debounce
         document.addEventListener('DOMContentLoaded', function() {
             const input = document.getElementById('input');
+            document.getElementById('tree').addEventListener('click', function(event) {
+                const el = event.target;
+                if (el.classList.contains('tree-toggle')) toggleBranch(event);
+                else if (el.dataset && el.dataset.more !== undefined) loadMore(el);
+                else if (viewMode !== 'table' && el.dataset && el.dataset.i !== undefined) selectItem(event, nodePaths[Number(el.dataset.i)]);
+            });
             input.addEventListener('input', function() {
                 clearTimeout(parseTimeout);
                 parseTimeout = setTimeout(parseJSON, 500);
@@ -672,8 +678,47 @@
             if (viewMode === 'table') {
                 renderTable(jsonData, tree);
             } else {
-                renderTree(jsonData, tree, []);
+                renderTree(jsonData, tree);
             }
+        }
+
+        // Removes a trailing comma (and the whitespace after it) from the end of the output so far.
+        function dropTrailingComma(out) {
+            let i = out.length - 1;
+            while (i >= 0 && /\s/.test(out[i])) i--;
+            if (i >= 0 && out[i] === ',') out.splice(i, 1);
+        }
+
+        // Repairs common paste errors: trailing commas and missing closing braces/brackets.
+        // Walks the text once, skipping string contents, so braces inside strings are ignored
+        // and closers are appended in the right nesting order. Only runs when plain
+        // JSON.parse fails, so valid JSON never pays for it.
+        function repairJSON(text) {
+            const stack = [];
+            const out = [];
+            let inString = false;
+            let escaped = false;
+            for (const ch of text) {
+                if (inString) {
+                    out.push(ch);
+                    if (escaped) escaped = false;
+                    else if (ch === String.fromCharCode(92)) escaped = true;
+                    else if (ch === '"') inString = false;
+                    continue;
+                }
+                if (ch === '"') { inString = true; out.push(ch); continue; }
+                if (ch === '{' || ch === '[') { stack.push(ch === '{' ? '}' : ']'); out.push(ch); continue; }
+                if (ch === '}' || ch === ']') {
+                    dropTrailingComma(out);
+                    if (stack[stack.length - 1] === ch) stack.pop();
+                    out.push(ch);
+                    continue;
+                }
+                out.push(ch);
+            }
+            dropTrailingComma(out);
+            while (stack.length) out.push(stack.pop());
+            return out.join('');
         }
 
         function parseJSON() {
@@ -690,25 +735,12 @@
             }
             
             try {
-                // Remove any trailing commas before closing braces/brackets
-                let cleanedInput = input.replace(/,(\s*[}\]])/g, '$1');
                 
-                // Auto-fix: add missing closing braces/brackets
-                let openBraces = (cleanedInput.match(/{/g) || []).length;
-                let closeBraces = (cleanedInput.match(/}/g) || []).length;
-                let openBrackets = (cleanedInput.match(/\[/g) || []).length;
-                let closeBrackets = (cleanedInput.match(/\]/g) || []).length;
-                
-                while (openBraces > closeBraces) {
-                    cleanedInput += '}';
-                    closeBraces++;
+                try {
+                    jsonData = JSON.parse(input);
+                } catch (firstError) {
+                    jsonData = JSON.parse(repairJSON(input));
                 }
-                while (openBrackets > closeBrackets) {
-                    cleanedInput += ']';
-                    closeBrackets++;
-                }
-                
-                jsonData = JSON.parse(cleanedInput);
                 renderCurrentView();
                 updateStats(jsonData);
                 stats.style.display = 'flex';
@@ -716,61 +748,81 @@
             } catch (e) {
                 // Show last 100 chars for debugging
                 const endChars = input.slice(-100);
-                error.innerHTML = `<div class="error"><strong>Parse Error:</strong> ${e.message}<br><small>Last 100 chars: <code>${endChars}</code></small></div>`;
+                error.innerHTML = `<div class="error"><strong>Parse Error:</strong> ${e.message}<br><small>Last 100 chars: <code>${esc(endChars)}</code></small></div>`;
                 tree.innerHTML = '';
                 stats.style.display = 'none';
             }
         }
 
-        function renderTree(obj, container, path, key = null) {
-            const item = document.createElement('div');
-            item.className = path.length === 0 ? 'tree-item tree-root' : 'tree-item';
-            
-            if (obj === null) {
-                item.innerHTML = createLeaf(key, 'null', 'null', path);
-            } else if (Array.isArray(obj)) {
-                item.innerHTML = createBranch(key, 'array', obj.length, path);
-                const content = document.createElement('div');
-                content.className = 'tree-content';
-                obj.forEach((val, idx) => {
-                    renderTree(val, content, [...path, idx], idx);
-                });
-                item.appendChild(content);
-            } else if (typeof obj === 'object') {
-                item.innerHTML = createBranch(key, 'object', Object.keys(obj).length, path);
-                const content = document.createElement('div');
-                content.className = 'tree-content';
-                Object.entries(obj).forEach(([k, v]) => {
-                    renderTree(v, content, [...path, k], k);
-                });
-                item.appendChild(content);
-            } else if (typeof obj === 'string') {
-                item.innerHTML = createLeaf(key, `"${obj}"`, 'string', path);
-            } else if (typeof obj === 'number') {
-                item.innerHTML = createLeaf(key, obj, 'number', path);
-            } else if (typeof obj === 'boolean') {
-                item.innerHTML = createLeaf(key, obj, 'boolean', path);
+        // Builds the whole tree as one HTML string (one innerHTML write instead of thousands of
+        // element creations). Each clickable node stores an index into nodePaths, and a single
+        // delegated click handler on #tree reads it, so no per-node handlers are needed.
+        let nodePaths = [];
+        // Large arrays and objects render in chunks so a 5,000-record file does not build
+        // tens of thousands of DOM nodes up front. A "show more" row loads the next chunk.
+        const CHUNK = 200;
+        let pendingChunks = [];
+
+        function renderTree(obj, container) {
+            nodePaths = [];
+            pendingChunks = [];
+            container.innerHTML = treeHTML(obj, [], null);
+        }
+
+        function moreRowHTML(entries, start, path) {
+            const id = pendingChunks.push({ entries, start, path }) - 1;
+            const left = entries.length - start;
+            return `<div class="tree-more" data-more="${id}" style="cursor:pointer;color:#b45309;padding:2px 0 2px 20px;">... show ${Math.min(CHUNK, left)} more (${left} left)</div>`;
+        }
+
+        function loadMore(row) {
+            const chunk = pendingChunks[Number(row.dataset.more)];
+            const end = Math.min(chunk.start + CHUNK, chunk.entries.length);
+            const html = chunk.entries.slice(chunk.start, end)
+                .map(([k, v]) => treeHTML(v, [...chunk.path, k], k)).join('');
+            row.insertAdjacentHTML('beforebegin', html);
+            chunk.start = end;
+            const left = chunk.entries.length - end;
+            if (left > 0) row.textContent = `... show ${Math.min(CHUNK, left)} more (${left} left)`;
+            else row.remove();
+        }
+
+        function treeHTML(obj, path, key) {
+            const root = path.length === 0;
+            const id = nodePaths.push(path) - 1;
+            const keyStr = key !== null ? `<span class="tree-key" data-i="${id}">${esc(key)}</span>: ` : '';
+            let inner;
+            if (obj !== null && typeof obj === 'object') {
+                const isArr = Array.isArray(obj);
+                const entries = isArr ? obj.map((v, i) => [i, v]) : Object.entries(obj);
+                const open = isArr ? '[' : '{';
+                const close = isArr ? ']' : '}';
+                const shown = entries.slice(0, CHUNK).map(([k, v]) => treeHTML(v, [...path, k], k)).join('');
+                const children = shown + (entries.length > CHUNK ? moreRowHTML(entries, CHUNK, path) : '');
+                inner = `<span class="tree-toggle">▼</span>${keyStr}<span class="tree-bracket">${open}</span>` +
+                    `<span style="color: #a8a29e; font-size: 11px;"> // ${entries.length} items</span>` +
+                    `<span class="collapsed-preview" style="display:none;"><span class="tree-bracket">...</span><span class="tree-bracket">${close}</span></span>` +
+                    `<div class="tree-content">${children}</div>`;
+            } else {
+                const type = obj === null ? 'null' : typeof obj;
+                const text = type === 'string' ? `"${obj}"` : String(obj);
+                inner = `<span style="width: 20px; display: inline-block;"></span>${keyStr}<span class="tree-value tree-${type}" data-i="${id}">${esc(text)}</span>`;
             }
-            
-            container.appendChild(item);
+            return `<div class="tree-item${root ? ' tree-root' : ''}">${inner}</div>`;
         }
 
-        function createBranch(key, type, count, path) {
-            const toggle = '<span class="tree-toggle" onclick="toggleBranch(event)">▼</span>';
-            const keyStr = key !== null ? `<span class="tree-key" onclick="selectItem(event, ${JSON.stringify(path).replace(/"/g, '&quot;')})">${key}</span>: ` : '';
-            const bracket = type === 'array' ? '[' : '{';
-            const closeBracket = type === 'array' ? ']' : '}';
-            const countStr = `<span style="color: #a8a29e; font-size: 11px;"> // ${count} items</span>`;
-            return `${toggle}${keyStr}<span class="tree-bracket">${bracket}</span>${countStr}<span class="collapsed-preview" style="display:none;"><span class="tree-bracket">...</span><span class="tree-bracket">${closeBracket}</span></span>`;
-        }
-
-        function createLeaf(key, value, type, path) {
-            const keyStr = key !== null ? `<span class="tree-key" onclick="selectItem(event, ${JSON.stringify(path).replace(/"/g, '&quot;')})">${key}</span>: ` : '';
-            return `<span style="width: 20px; display: inline-block;"></span>${keyStr}<span class="tree-value tree-${type}" onclick="selectItem(event, ${JSON.stringify(path).replace(/"/g, '&quot;')})">${value}</span>`;
+        // Escapes text before it goes into innerHTML, so pasted JSON can never inject markup.
+        function esc(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
         }
 
         function pathAttr(path) {
-            return JSON.stringify(path).replace(/"/g, '&quot;');
+            return esc(JSON.stringify(path));
         }
 
         function cellPreview(value) {
@@ -796,7 +848,7 @@
             const div = document.createElement('div');
             div.className = 'table-scalar';
             const p = cellPreview(value);
-            div.innerHTML = `<span class="${p.cls}">${p.text}</span>`;
+            div.innerHTML = `<span class="${p.cls}">${esc(p.text)}</span>`;
             return div;
         }
 
@@ -819,7 +871,7 @@
                     });
                 });
 
-                let html = `<table class="data-table"><thead><tr><th>#</th>${columns.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>`;
+                let html = `<table class="data-table"><thead><tr><th>#</th>${columns.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>`;
                 arr.forEach((obj, i) => {
                     const rowPath = [...path, i];
                     html += `<tr><td class="row-index" onclick="selectTableCell(event, ${pathAttr(rowPath)})">${i}</td>`;
@@ -828,7 +880,7 @@
                             html += `<td class="missing-cell" onclick="selectTableCell(event, ${pathAttr(rowPath)})">—</td>`;
                         } else {
                             const p = cellPreview(obj[col]);
-                            html += `<td onclick="selectTableCell(event, ${pathAttr([...rowPath, col])})"><span class="${p.cls}">${p.text}</span></td>`;
+                            html += `<td onclick="selectTableCell(event, ${pathAttr([...rowPath, col])})"><span class="${p.cls}">${esc(p.text)}</span></td>`;
                         }
                     });
                     html += `</tr>`;
@@ -840,7 +892,7 @@
                 arr.forEach((item, i) => {
                     const cellPath = [...path, i];
                     const p = cellPreview(item);
-                    html += `<tr><td class="row-index" onclick="selectTableCell(event, ${pathAttr(cellPath)})">${i}</td><td onclick="selectTableCell(event, ${pathAttr(cellPath)})"><span class="${p.cls}">${p.text}</span></td></tr>`;
+                    html += `<tr><td class="row-index" onclick="selectTableCell(event, ${pathAttr(cellPath)})">${i}</td><td onclick="selectTableCell(event, ${pathAttr(cellPath)})"><span class="${p.cls}">${esc(p.text)}</span></td></tr>`;
                 });
                 html += `</tbody></table>`;
                 wrap.innerHTML = html;
@@ -863,7 +915,7 @@
             entries.forEach(([k, v]) => {
                 const cellPath = [...path, k];
                 const p = cellPreview(v);
-                html += `<tr><td class="key-cell" onclick="selectTableCell(event, ${pathAttr(cellPath)})">${k}</td><td onclick="selectTableCell(event, ${pathAttr(cellPath)})"><span class="${p.cls}">${p.text}</span></td></tr>`;
+                html += `<tr><td class="key-cell" onclick="selectTableCell(event, ${pathAttr(cellPath)})">${esc(k)}</td><td onclick="selectTableCell(event, ${pathAttr(cellPath)})"><span class="${p.cls}">${esc(p.text)}</span></td></tr>`;
             });
             html += `</tbody></table>`;
             wrap.innerHTML = html;
@@ -932,7 +984,7 @@
                 if (part === '.' || part === '[' || part === ']') {
                     return `<span class="breadcrumb-separator">${part}</span>`;
                 }
-                return `<span class="breadcrumb-item">${part}</span>`;
+                return `<span class="breadcrumb-item">${esc(part)}</span>`;
             }).join('');
             
             let value = jsonData;
@@ -953,7 +1005,7 @@
                 </div>
                 <div class="info-row">
                     <span class="info-label">Path:</span>
-                    <span class="info-value">${pathStr}</span>
+                    <span class="info-value">${esc(pathStr)}</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Depth:</span>
