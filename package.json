@@ -1,0 +1,12 @@
+{
+  "name": "json-viewer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Single-page JSON viewer with path navigator",
+  "scripts": {
+    "test": "node --test tests/"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^24.0.0"
+  }
+}

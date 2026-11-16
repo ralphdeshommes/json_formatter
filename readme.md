@@ -5,7 +5,9 @@ A single-page JSON viewer built to make messy, deeply nested JSON actually easy 
 ## Features
 
 - Live parsing as you type (debounced)
-- Auto-fixes common paste issues: trailing commas, missing closing `}`/`]`
+- Auto-fixes common paste issues: trailing commas and missing closing `}`/`]`, closed in the right nesting order and ignoring braces inside strings
+- Large arrays and objects render in chunks of 200 with a "show more" row, so big files stay fast
+- Pasted text is escaped before it is shown, so HTML inside JSON values or keys is displayed as text and never runs
 - Collapsible tree view, with expand-all / collapse-all
 - Click any key or value to see its breadcrumb path, type, depth, and size
 - One-click copy of the current path
@@ -23,6 +25,17 @@ No install, no build step — just open [index.html](index.html) in a browser.
 ## Tech
 
 Plain HTML, CSS, and vanilla JavaScript in a single file. No frameworks or build tooling.
+
+## Tests
+
+Browser tests drive the page in headless Chrome and check auto-repair, HTML escaping, stats, the tree, chunked rendering, the table view, and the buttons.
+
+```
+npm install
+npm test
+```
+
+Set `CHROME_PATH` if Chrome is not in the default Windows location. The run prints the share of the page's script that the tests executed.
 
 ## Ideas / Not Yet Built
 
